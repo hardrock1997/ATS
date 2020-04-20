@@ -569,9 +569,9 @@ export class RequisitionEditComponent implements OnInit, FormComponent {
 	/* Create Alternate User */
 	createAltUser(data: any): FormGroup {
 		return this.requisitionFB.group({
-			altFirstName: [data.first_name, [Validators.required,Validators.minLength(3),Validators.maxLength(15),this.noWhitespaceValidator]],
+			altFirstName: [data.first_name, []],
 			altLastName: [data.last_name, []],
-			altEmail: [data.email, [Validators.email,Validators.required]],
+			altEmail: [data.email, [Validators.email]],
 			altPhone: [data.phone, []],
 		});
 	}
@@ -594,9 +594,9 @@ export class RequisitionEditComponent implements OnInit, FormComponent {
 	/* Create Preferred Candidate*/
 	createPreferredCandidate(prefCandData: any): FormGroup {
 		return this.requisitionFB.group({
-			prefFirstName: [prefCandData.detail.first_name, [Validators.required,Validators.maxLength(15),Validators.minLength(3),this.noWhitespaceValidator]],
+			prefFirstName: [prefCandData.detail.first_name,[]],
 			prefLastName: [prefCandData.detail.last_name, []],
-			prefEmail: [prefCandData.detail.email, [Validators.required,Validators.email]],
+			prefEmail: [prefCandData.detail.email, [Validators.email]],
 			prefPhone: [prefCandData.detail.phone, []],
 			prefId: [prefCandData.id],
 			prefCandId: [prefCandData.candiate_id],
@@ -637,7 +637,7 @@ export class RequisitionEditComponent implements OnInit, FormComponent {
 			this.router.navigateByUrl(_backUrl);
 		}*/
 	}
-
+       
 	onSubmit(withBack: boolean = false) {
 		this.setFieldsValidators('request');
 		this.onSubmitClicked = true;
@@ -649,15 +649,75 @@ export class RequisitionEditComponent implements OnInit, FormComponent {
 		this.hasFormErrors = false;
 		this.error = { isError: false, errorMessage: "" };
 		const controls = this.requisitionForm.controls;
-		/** check form */
-		if (this.requisitionForm.invalid) {
+		
+		let preferredCandidates = this.requisitionForm.get("preferredCandidates") as FormArray;
+		let __this = this;
+		let altUsers = this.requisitionForm.get("altUsers") as FormArray;
+		for(let i=0; i<altUsers.length;i++)
+		{
+			altUsers.at(i)['controls']['altFirstName'].clearValidators([]);
+			altUsers.at(i)['controls']['altEmail'].clearValidators([]);
+			let altFirstName = altUsers['Value'][i]['altFirstName']
+			let altEmail = altUsers['Value'][i]['altEmail']
+			let altPhone = altUsers['Value'][i]['altPhone']
+			let altLastName = altUsers['Value'][i]['altLastName']
+			altFirstName = (altFirstName)?altFirstName.trim():altFirstName;
+			altEmail = (altEmail)?altEmail.trim():altEmail;
+			if(altFirstName || altEmail || altPhone || altLastName)
+			{
+				altUsers.at(i)['controls']['altFirstname'].setValidators([Validators.required,Validators.minLength(3),Validators.maxLength(5)]);
+				altUsers.at(i)['controls']['altEmail'].setValidators([Validators.required,Validators.email]);
+			
+			if(!altFirstName){
+				altUsers.at(i)['controls']["altFirstname"].patchValue("");
+				__this.hasFormErrors = true;
+			  }
+			if(!altEmail){
+				altUsers.at(i)['controls']["altEmail"].patchValue("");
+				__this.hasFormErrors = true;
+			  }
+		  }
+	  }
+
+		for(  let i=0; i<preferredCandidates.length;i++)
+		{
+			preferredCandidates.at(i)['controls']['prefFirstName'].clearValidators([]);
+			preferredCandidates.at(i)['controls']['prefEmail'].clearValidators([]);
+			console.log(preferredCandidates['value'][i],"-----");
+	        let prefEmail = preferredCandidates['value'][i]['prefEmail']
+	        let prefFirstName = preferredCandidates['value'][i]['prefFirstName']
+	        let prefLastName = preferredCandidates['value'][i]['prefLastName']
+	        let prefPhone = preferredCandidates['value'][i]['prefPhone']
+			prefEmail = (prefEmail)?prefEmail.trim():prefEmail;
+			prefFirstName = (prefFirstName)?prefFirstName.trim():prefFirstName;
+			if(prefEmail || prefFirstName || prefLastName || prefPhone)
+			{
+				preferredCandidates.at(i)['controls']['prefFirstName'].setValidators([Validators.required,Validators.minLength(3),Validators.maxLength(5)]);
+				preferredCandidates.at(i)['controls']['prefEmail'].setValidators([Validators.required,Validators.email]);
+				preferredCandidates.at(i)['controls']['prefEmail'].markAsTouched();
+				preferredCandidates.at(i)['controls']['prefFirstName'].markAsTouched();
+				if( !prefFirstName ) {
+					preferredCandidates.at(i)['controls']["prefFirstName"].patchValue("");
+					__this.hasFormErrors = true;
+				} 
+				if(!prefEmail){
+					preferredCandidates.at(i)['controls']["prefEmail"].patchValue("");
+					__this.hasFormErrors = true;
+				}
+			}
+	   }
+	   if (this.requisitionForm.invalid) {
 			Object.keys(controls).forEach(controlName =>
 				controls[controlName].markAsTouched()
 			);
 			this.hasFormErrors = true;
 			return;
 		}
-
+		if(__this.hasFormErrors==true){
+			//this.requisitionForm.markAsUntouched();
+			__this.requisitionForm.markAsPristine();
+			return ;
+		}
 		/** check start date & end date **/
 		if (!this.compareDates()) {
 			this.hasFormErrors = true;
@@ -673,7 +733,7 @@ export class RequisitionEditComponent implements OnInit, FormComponent {
 		}
 		this.addRequisition(editedRequisition, withBack);
 	}
-
+forname
 	onSubmitDraft(withBack: boolean = false) {
 		this.resetMinMaxValueValidator();// Reset Default Validation
 		this.removeFieldsValidators('request');
@@ -1319,3 +1379,55 @@ export class RequisitionEditComponent implements OnInit, FormComponent {
 		return this.accessRoles.isProjectFreeText();
 	}
 }
+
+
+
+
+
+
+
+
+
+/*let i:number;
+let __this=this;
+let prefCandidates = __this.requisitionForm.get('preferredCandidates') as FormArray;
+for(i = 0; i < prefCandidates.length; i++)
+{
+	let prefEmail = prefCandidates['value'][i]['prefEmail'];
+	let prefFirstName = prefCandidates['value'][i]['prefFirstName'];
+	let prefLastName = prefCandidates['value'][i]['prefLastName'];
+	let prefPhone = prefCandidates['value'][i]['prefPhone'];
+	if(prefEmail.value!=null || prefFirstName.value!=null || prefLastName.value!=null || prefPhone!.value!=null)
+	{
+		if(prefFirstName!=null)
+		{
+			__this.hasFormErrors=prefCandidates.at(i)['controls']['prefFirstName'].setValidators([Validators.required]);
+			if(__this.hasForm!=null)
+			[
+				prefCandidates.at(i)['controls']['prefEmail'].markAsTouched();
+			]
+		}
+		else if(prefEmail!=null)
+		{
+            prefCandidates.at(i)['controls']['prefEmail'].setValidators([Validators.required,Validators.email]);
+		}
+
+	}
+
+}
+prefCandidates.at(i)['controls']['prefEmail'].setValidators([Validators.email]);
+prefCandidates.at(i)['controls']['prefFirstName'].clearValidators([]);
+//prefCandidates.at(i)['controls']['prefEmail'].setValidators([Validators.required, Validators.email]);
+prefCandidates.at(i)['controls']['prefFirstName'].setValidators([Validators.required]);
+prefCandidates.at(i)['controls']['prefEmail'].markAsTouched();
+prefCandidates.at(i)['controls']['prefFirstName'].markAsTouched();
+//prefCandidates.updateValueAndValidity();
+
+let prefEmail = prefCandidates['value'][i]['prefEmail'];
+let prefFirstName = prefCandidates['value'][i]['prefFirstName'];
+let prefLastName = prefCandidates['value'][i]['prefLastName'];
+let prefPhone = prefCandidates['value'][i]['prefPhone'];
+
+__this.hasFormErrors = true;
+
+//}*/
