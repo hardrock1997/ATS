@@ -1,0 +1,921 @@
+<m-portlet [options]="{headLarge: true, enableSticky: true}" [loading$]="loading$">
+	//<script src="//cdn.ckeditor.com/4.14.0/full/ckeditor.js"></script>
+	<ng-container mPortletHeadTitle>
+		<div class="m-portlet__head-title">
+			<h3 class="m-portlet__head-text">
+				{{ getComponentTitle() }} &nbsp; <span class="primary-color"
+					*ngIf="(requisition?.req_code || requisition?.req_id) && !duplicate">
+					{{requisition?.req_code ? requisition?.req_code:requisition?.req_id}}</span>&nbsp;&nbsp;&nbsp;&nbsp;<span
+					*ngIf="viewMode && !duplicate"> Status: <span
+						class="m-badge m-badge--{{ getItemCssClassByStatus(reqStatus) }} m-badge--wide">{{ getItemStatusString(reqStatus) }}</span></span>
+			</h3>
+		</div>
+	</ng-container>
+	<ng-container mPortletHeadTools>
+		<button type="button" (click)="goBack()" mat-raised-button
+			matTooltip="Back to the requisition list">Back</button>&nbsp;
+		<button *ngIf="!accessRoles?.isAdmin() && ((viewMode != true) || (reqStatus == 'Draft'))" mat-raised-button
+			(click)="onSubmitDraft(false)" matTooltip="Save As Draft" class="btn-accent">Save As Draft</button>&nbsp;
+		<div class="m-buttons--wrapper">
+			<button type="button" *ngIf="!(accessRoles?.isAdmin())"
+				[disabled]="requisitionForm.value.showProfileNotFound" (click)="onSubmit(true)" mat-raised-button
+				color="primary" matTooltip="Save & Continue">
+				Submit
+			</button>
+			<button type="button"
+				*ngIf="accessRoles?.isAdmin()"
+				[disabled]="requisitionForm.value.showProfileNotFound" (click)="onSaveByAdmin()" mat-raised-button
+				color="primary" matTooltip="Save">
+				Save
+			</button>
+		</div>
+	</ng-container>
+	<ng-container mPortletBody>
+		<!--begin::Form-->
+		<form [formGroup]="requisitionForm" class="m-form m-form--group-seperator-dashed">
+
+			<m-alert *ngIf="hasFormErrors" type="warn" [showCloseButton]="true" [duration]="10000"
+				(close)="onAlertClose($event)">
+				Has Form Errors.
+			</m-alert>
+
+			<div class="m-form__section m-form__section--first">
+				<div class="m-form__group">
+					<div class="row group-heading-text">
+						<div class="col-md-12 m--margin-bottom-10-mobile">
+							<h5>Requisition</h5>
+						</div>
+					</div>
+					<div class="m-form__group">
+						<div class="row">
+							<div class="col-md-3 m--margin-bottom-10-mobile">
+								<div
+									*ngIf="(isProjectFreeText()) || (requisitionForm.value.showProfileNotFound) || (projectCategoryProfileDeleted && reqStatus == 'Approved');else categoryList">
+									<mat-form-field class="mat-form-field-fluid"
+										*ngIf="(isProjectFreeText() || requisitionForm.value.showProfileNotFound);else categoryDeleted">
+										<input matInput placeholder="Title/Labor Category *"
+											formControlName="projectProfile">
+										<mat-error>
+											Title/Labor Category is
+											<strong>required</strong>
+										</mat-error>
+									</mat-form-field>
+									<ng-template #categoryDeleted>
+										<mat-form-field class="mat-form-field-fluid">
+											<input matInput placeholder="Title/Labor Category *"
+												formControlName="categoryDeleted">
+										</mat-form-field>
+									</ng-template>
+								</div>
+								<ng-template #categoryList>
+									<div *ngIf="!isProjectFreeText()">
+										<mat-form-field class="mat-form-field-fluid">
+											<mat-select placeholder="Title/Labor Category *"
+												formControlName="projectProfile"
+												(selectionChange)="onSelectCategory($event)" disabled="{{isDisabled}}">
+												<span *ngFor="let group of projectProfile; index as i">
+													<hr *ngIf="i !==0" style="margin-bottom: 0px;" />
+													<div style="padding: 15px; font-weight: bold;">{{group.name}}</div>
+													<mat-option *ngFor="let profile of group.projectProfiles"
+														[value]="profile.id">
+														{{profile.title}}
+													</mat-option>
+												</span>
+											</mat-select>
+											<mat-error>
+												Title/Labor Category is
+												<strong>required</strong>
+											</mat-error>
+										</mat-form-field>
+									</div>
+								</ng-template>
+								<div
+									*ngIf="accessRoles.isProjectShowProfileNotFound() && ((viewMode != true) || (reqStatus == 'Draft'))">
+									<mat-checkbox (change)="onChangeProfileNotFound($event)"
+										formControlName="showProfileNotFound" class="example-margin">Not Found
+									</mat-checkbox>
+								</div>
+							</div>
+
+
+							<div class="col-md-3 m--margin-bottom-10-mobile">
+								<mat-form-field class="mat-form-field-fluid">
+									<input matInput placeholder="Min Rate" formControlName="minRate"
+										[readonly]="accessRoles.getProjectLaborCategory() =='Defined With Rates' && !requisitionForm.value.showProfileNotFound ? true : false">
+									<mat-error>
+										Min Rate must be a number between 0 and 99999999 with up to 2 decimal digits and
+										must be less than max rate
+									</mat-error>
+								</mat-form-field>
+							</div>
+							<div class="col-md-3 m--margin-bottom-10-mobile">
+								<mat-form-field class="mat-form-field-fluid">
+									<input matInput placeholder="Max Rate" formControlName="maxRate"
+										[readonly]="accessRoles.getProjectLaborCategory() =='Defined With Rates' && !requisitionForm.value.showProfileNotFound ? true : false">
+									<mat-error>
+										Max Rate must be a number between 0 and 99999999 with up to 2 decimal digits and
+										must be greater than min rate
+									</mat-error>
+								</mat-form-field>
+							</div>
+							<div class="col-md-3 m--margin-bottom-10-mobile">
+								<mat-form-field class="mat-form-field-fluid">
+									<input matInput placeholder="Number of Positions *" formControlName="position">
+									<mat-error>
+										Please enter number
+										<strong>between 1-1000</strong>
+									</mat-error>
+								</mat-form-field>
+							</div>
+						</div>
+					</div>
+					<div class="m-form__group">
+						<div class="row">
+							<div class="col-md-3 m--margin-bottom-10-mobile">
+								<mat-form-field class="mat-form-field-fluid">
+									<input matInput [min]="today" [matDatepicker]="startDate"
+										placeholder="Choose a Start Date *" formControlName="startDate"
+										(dateChange)="onSelectDurationOrStartDate(requisitionForm.get('duration').value,true)" />
+									<mat-datepicker-toggle matSuffix [for]="startDate" disabled="{{isDisabled}}">
+									</mat-datepicker-toggle>
+									<mat-datepicker #startDate></mat-datepicker>
+									<mat-error>
+										Start Date
+										<strong>required</strong>
+									</mat-error>
+								</mat-form-field>
+								<div *ngIf="error.isError" class="text-warning">
+									{{ error.errorMessage }}
+								</div>
+							</div>
+							<div class="col-md-3 m--margin-bottom-10-mobile">
+								<mat-form-field class="mat-form-field-fluid">
+									<mat-select placeholder="Duration in months *" formControlName="duration"
+										disabled="{{isDisabled}}"
+										(selectionChange)="onSelectDurationOrStartDate($event.value,false)">
+										<mat-option *ngFor="let month of durationInMonth" [value]="month">
+											{{month}}
+										</mat-option>
+									</mat-select>
+									<mat-error>
+										Duration in months
+										<strong>required</strong>
+									</mat-error>
+								</mat-form-field>
+							</div>
+							<div class="col-md-3 m--margin-bottom-10-mobile">
+								<mat-form-field class="mat-form-field-fluid">
+									<input matInput [min]="endDateMin" [matDatepicker]="endDate"
+										placeholder="Choose a End Date *" formControlName="endDate"
+										(dateChange)="onSelectEndDate()" />
+									<mat-datepicker-toggle matSuffix [for]="endDate" disabled="{{isDisabled}}">
+									</mat-datepicker-toggle>
+									<mat-datepicker #endDate></mat-datepicker>
+									<mat-error>
+										End Date
+										<strong>required</strong>
+									</mat-error>
+								</mat-form-field>
+							</div>
+							<div class="col-md-3 m--margin-bottom-10-mobile">
+								<mat-form-field class="mat-form-field-fluid">
+									<input matInput placeholder="Hours per Week *" formControlName="hours">
+									<mat-error>
+										Please enter number
+										<strong>between 1-50</strong>
+									</mat-error>
+								</mat-form-field>
+							</div>
+						</div>
+					</div>
+					<div class="m-form__group">
+						<div class="row">
+							<div class="col-md-3 m--margin-bottom-10-mobile">
+								<mat-form-field class="mat-form-field-fluid">
+									<mat-select placeholder="Eligibility *" formControlName="citizenShip"
+										disabled="{{isDisabled}}" multiple>
+										<mat-option *ngFor="let item of eligibilityList" [value]="item">{{item}}</mat-option>
+									</mat-select>
+									<mat-error>
+										Eligibility
+										<strong>required</strong>
+									</mat-error>
+								</mat-form-field>
+							</div>
+							<div class="col-md-3 m--margin-bottom-10-mobile">
+								<mat-form-field class="mat-form-field-fluid">
+									<mat-select placeholder="Clearance *" formControlName="clearance"
+										(selectionChange)="onSelectClearance($event)" disabled="{{isDisabled}}">
+										<mat-option value="{{cval}}" *ngFor="let cval of clearance;">{{cval}}
+										</mat-option>
+									</mat-select>
+									<mat-error>
+										Clearance
+										<strong>required</strong>
+									</mat-error>
+								</mat-form-field>
+							</div>
+							<div class="col-md-3 m--margin-bottom-10-mobile" *ngIf="selClearanceOther">
+								<mat-form-field class="mat-form-field-fluid">
+									<input matInput placeholder="Enter text" formControlName="clearanceOther"
+										required="required">
+									<mat-error>
+										Please enter text
+									</mat-error>
+								</mat-form-field>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="m-form__group" *ngIf="viewMode">
+					<div class="row group-heading-text">
+						<div class="col-md-12 m--margin-bottom-10-mobile">
+							<h5>Candidates</h5>
+						</div>
+					</div>
+					<div class="m-form__group" *ngIf="reqCandidates.length > 0">
+						<div class="row">
+							<div class="col-md-12 m--margin-bottom-10-mobile">
+								<table class="table table-striped table-bordered">
+									<thead>
+										<tr>
+											<th>Last Name</th>
+											<th>First Name</th>
+											<th>Status</th>
+											<th></th>
+										</tr>
+									</thead>
+									<tbody>
+										<tr *ngFor="let reqCan of reqCandidates">
+											<td>
+												<a [routerLink]="['/candidate/view']" [queryParams]="{id: reqCan?.id}"
+													color="primary" matTooltip="View Candidate Details">
+													{{reqCan?.last_name}}
+												</a>
+											</td>
+											<td>{{reqCan?.first_name}}</td>
+											<td>{{reqCan?.status?.description}}</td>
+											<td
+												*ngIf="!accessRoles?.isAdmin() && isCandidateEditable(reqCan?.status?.id)">
+												<a [routerLink]="['/candidate/candidateactivity']"
+													[queryParams]="{id: reqCan?.id}" color="primary"
+													matTooltip="Change Candidate Status">
+													<mat-icon>create</mat-icon>
+												</a>
+											</td>
+										</tr>
+									</tbody>
+								</table>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="m-form__group">
+					<div class="row group-heading-text">
+						<div class="col-md-12 m--margin-bottom-10-mobile">
+							<h5>Requesting Manager</h5>
+							<span>Please complete the Contact Information for the Manager who is requesting this
+								Requisition</span>
+						</div>
+					</div>
+					<div class="m-form__group">
+						<div class="row">
+							<div class="col-md-4 m--margin-bottom-10-mobile">
+								<mat-form-field class="mat-form-field-fluid">
+									<input matInput placeholder="Email"
+										(blur)="getUserByEmail($event.target.value,'request')"
+										formControlName="requestEmail">
+									<mat-error>
+										Email is
+										<strong>required</strong>
+									</mat-error>
+								</mat-form-field>
+							</div>
+							<div class="col-md-4 m--margin-bottom-10-mobile">
+								<mat-form-field class="mat-form-field-fluid">
+									<input matInput placeholder="First Name" formControlName="requestFirstName"
+										[readonly]="readOnlyRequestingManager ? true : false ">
+									<mat-error>
+										First Name is
+										<strong>required</strong>
+									</mat-error>
+								</mat-form-field>
+							</div>
+							<div class="col-md-4 m--margin-bottom-10-mobile">
+								<mat-form-field class="mat-form-field-fluid">
+									<input matInput placeholder="Last Name" formControlName="requestLastName"
+										[readonly]="readOnlyRequestingManager ? true : false ">
+									<mat-error>
+										Last Name is
+										<strong>required</strong>
+									</mat-error>
+								</mat-form-field>
+							</div>
+						</div>
+					</div>
+					<div class="m-form__group">
+						<div class="row">
+							<div class="col-md-4 m--margin-bottom-10-mobile">
+								<mat-form-field class="mat-form-field-fluid">
+									<input matInput placeholder="Phone" formControlName="requestPhone"
+										[readonly]="readOnlyRequestingManager ? true : false ">
+									<mat-error>
+										Phone Name is
+										<strong>required</strong>
+									</mat-error>
+								</mat-form-field>
+							</div>
+							<div class="col-md-8 m--margin-bottom-10-mobile">
+								<mat-form-field class="mat-form-field-fluid">
+									<input matInput placeholder="Department or Section" formControlName="requestOrgDep">
+									<mat-error>
+										Department or Section is
+										<strong>required</strong>
+									</mat-error>
+								</mat-form-field>
+							</div>
+
+						</div>
+					</div>
+				</div>
+
+				<div class="m-form__group">
+					<div class="row group-heading-text">
+						<div class="col-md-12 m--margin-bottom-10-mobile">
+							<h5>Approving Manager</h5>
+							<span>Please complete the Contact Information for the Manager who is approving this
+								Requisition</span>
+						</div>
+					</div>
+					<div class="m-form__group">
+						<div class="row">
+							<div class="col-md-3 m--margin-bottom-10-mobile">
+								<mat-form-field class="mat-form-field-fluid">
+									<input matInput placeholder="Email"
+										(blur)="getUserByEmail($event.target.value,'approve')"
+										formControlName="approveEmail">
+									<mat-error>
+										Email is
+										<strong>required</strong>
+									</mat-error>
+								</mat-form-field>
+							</div>
+							<div class="col-md-3 m--margin-bottom-10-mobile">
+								<mat-form-field class="mat-form-field-fluid">
+									<input matInput placeholder="First Name" formControlName="approveFirstName"
+										[readonly]="readOnlyApprovingManager? true: false">
+									<mat-error>
+										First Name is
+										<strong>required</strong>
+									</mat-error>
+								</mat-form-field>
+							</div>
+							<div class="col-md-3 m--margin-bottom-10-mobile">
+								<mat-form-field class="mat-form-field-fluid">
+									<input matInput placeholder="Last Name" formControlName="approveLastName"
+										[readonly]="readOnlyApprovingManager ? true : false ">
+									<mat-error>
+										Last Name is
+										<strong>required</strong>
+									</mat-error>
+								</mat-form-field>
+							</div>
+							<div class="col-md-3 m--margin-bottom-10-mobile">
+								<mat-form-field class="mat-form-field-fluid">
+									<input matInput placeholder="Phone" formControlName="approvePhone"
+										[readonly]="readOnlyApprovingManager? 'true': false ">
+									<mat-error>
+										Phone Name is
+										<strong>required</strong>
+									</mat-error>
+								</mat-form-field>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- <div class="m-form__group">
+						<div class="row group-heading-text">
+							<div class="col-md-12 m--margin-bottom-10-mobile">
+								<h5>Hiring Manager</h5>
+								<span>Please complete the Contact Information for the Manager who is hiring this Requisition</span>
+							</div>
+						</div>
+						<div class="m-form__group">
+							<div class="row">
+								<div class="col-md-3 m--margin-bottom-10-mobile">
+									<mat-form-field class="mat-form-field-fluid">
+										<input matInput placeholder="Email" (blur)="getUserByEmail($event.target.value,'hire')" formControlName="hireEmail">
+										<mat-error>
+											Email is
+											<strong>required</strong>
+										</mat-error>
+									</mat-form-field>
+								</div>
+								<div class="col-md-3 m--margin-bottom-10-mobile">
+									<mat-form-field class="mat-form-field-fluid">
+										<input matInput placeholder="First Name" formControlName="hireFirstName" [readonly]="readOnlyHiringManager" >
+										<mat-error>
+											First Name is
+											<strong>required</strong>
+										</mat-error>
+									</mat-form-field>
+								</div>
+								<div class="col-md-3 m--margin-bottom-10-mobile">
+									<mat-form-field class="mat-form-field-fluid">
+										<input matInput placeholder="Last Name" formControlName="hireLastName" [readonly]="readOnlyHiringManager" >
+										<mat-error>
+											Last Name is
+											<strong>required</strong>
+										</mat-error>
+									</mat-form-field>
+								</div>
+								<div class="col-md-3 m--margin-bottom-10-mobile">
+									<mat-form-field class="mat-form-field-fluid">
+										<input matInput placeholder="Phone" formControlName="hirePhone" [readonly]="readOnlyHiringManager">
+										<mat-error>
+											Phone Name is
+											<strong>required</strong>
+										</mat-error>
+									</mat-form-field>
+								</div>
+							</div>
+						</div>
+					</div> -->
+
+				<div class="m-form__group">
+					<div class="row group-heading-text">
+						<div class="col-md-12 m--margin-bottom-10-mobile">
+							<h5>Alternates</h5>
+							<span>Please add alternates below. These are people who will be able to review and provide
+								feedback for candidate resumes on this requistion.</span>
+						</div>
+					</div>
+					<div class="m-form__group" formArrayName="altUsers"
+						*ngFor="let item of requisitionForm.get('altUsers')['controls']; let i = index;">
+						<div class="row" [formGroupName]="i">
+							<div class="col-md-3 m--margin-bottom-10-mobile">
+								<mat-form-field class="mat-form-field-fluid">
+									<input matInput placeholder="Email" formControlName="altEmail" (blur)="checkDuplicateUserByEmail($event.target.value,i,1)">
+									<mat-error>
+										Email is
+										<strong>required/invalid</strong>
+									</mat-error>
+								</mat-form-field>
+							</div>
+							<div class="col-md-3 m--margin-bottom-10-mobile">
+								<mat-form-field class="mat-form-field-fluid">
+									<input matInput placeholder="First Name" formControlName="altFirstName">
+									<mat-error>
+										First Name is
+										<strong>required</strong>
+									</mat-error>
+								</mat-form-field>
+							</div>
+							<div class="col-md-3 m--margin-bottom-10-mobile">
+								<mat-form-field class="mat-form-field-fluid">
+									<input matInput placeholder="Last Name" formControlName="altLastName">
+									<mat-error>
+										Last Name is
+										<strong>required</strong>
+									</mat-error>
+								</mat-form-field>
+							</div>
+							<div class="col-md-3 m--margin-bottom-10-mobile">
+								<mat-form-field class="mat-form-field-fluid">
+									<input matInput placeholder="Phone" formControlName="altPhone">
+									<mat-error>
+										Phone is
+										<strong>required</strong>
+									</mat-error>
+								</mat-form-field>
+							</div>
+							<div class="col-md-12 m--margin-bottom-10-mobile" style="text-align: -webkit-right;">
+								<a href="javascript:void(0)" mat-icon-button color="error" matTooltip="Delete"
+									(click)="removeAltUser(i)">
+									<mat-icon>delete</mat-icon>
+								</a>
+							</div>
+						</div>
+					</div>
+					<div class="m-form__group">
+						<div class="row group-heading-text">
+							<div class="col-md-12 m--margin-bottom-10-mobile">
+								<a href="javascript:void(0)" (click)="addAltUser()" mat-icon-button color="primary"
+									matTooltip="Add Another & Continue">Add Another</a>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="m-form__group">
+					<div class="row group-heading-text">
+						<div class="col-md-12 m--margin-bottom-10-mobile">
+							<h5>Statement of Work</h5>
+							<span>Please provide as much detail as possible</span>
+						</div>
+					</div>
+					<div class="m-form__group">
+						<div class="row">
+							<div class="col-md-12 m--margin-bottom-10-mobile">
+								<label class="col-form-label">Job Description :</label>
+							</div>
+							<div class="col-md-12 m--margin-bottom-10-mobile">
+								<!-- <mat-form-field class="mat-form-field-fluid"> -->
+								<!-- <textarea matInput rows="7" placeholder="Job Description" formControlName="sowDescription"></textarea> -->
+								<ckeditor data="<p>Enter your text here</p>"></ckeditor>
+								<!--<angular-editor id="sowDescription" formControlName="sowDescription"
+									[config]="editorConfig"></angular-editor>-->
+								<!-- </mat-form-field> -->
+							</div>
+						</div>
+					</div>
+					<div class="m-form__group">
+						<div class="row">
+							<div class="col-md-12 m--margin-bottom-10-mobile">
+								<label class="col-form-label">Required Skills :</label>
+							</div>
+							<div class="col-md-12 m--margin-bottom-10-mobile">
+								<!-- <mat-form-field class="mat-form-field-fluid">
+										<textarea matInput rows="7" placeholder="Required Skills" formControlName="sowSkills"></textarea>
+									</mat-form-field> -->
+									<ckeditor data="<p>Enter your text here</p>"></ckeditor>
+								<!--<angular-editor id="sowSkills" formControlName="sowSkills" [config]="editorConfig">
+								</angular-editor>-->
+							</div>
+						</div>
+					</div>
+					<div class="m-form__group">
+						<div class="row">
+							<div class="col-md-12 m--margin-bottom-10-mobile">
+								<label class="col-form-label">Desired Skills :</label>
+							</div>
+							<div class="col-md-12 m--margin-bottom-10-mobile">
+								<!-- <mat-form-field class="mat-form-field-fluid">
+										<textarea matInput rows="7" placeholder="Desired Skills" formControlName="sowResponsibilities"></textarea>
+									</mat-form-field> -->
+									<ckeditor data="<p>Enter your text here</p>"></ckeditor>
+								<!--<angular-editor id="sowResponsibilities" formControlName="sowResponsibilities"
+									[config]="editorConfig"></angular-editor>-->
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="m-form__group">
+					<div class="row group-heading-text">
+						<div class="col-md-12 m--margin-bottom-10-mobile">
+							<h5>Preferred Candidate</h5>
+							<span>If a candidate has already been identified for this position, please enter thier
+								information here.</span>
+						</div>
+					</div>
+					<div class="m-form__group" formArrayName="preferredCandidates"
+						*ngFor="let item of requisitionForm.get('preferredCandidates')['controls']; let i = index;">
+						<div class="row" [formGroupName]="i">
+							<div class="col-md-3 m--margin-bottom-10-mobile">
+								<mat-form-field class="mat-form-field-fluid">
+									<input matInput placeholder="First Name" formControlName="prefFirstName">
+									<mat-error>
+										First Name is
+										<strong>required</strong>
+									</mat-error>
+								</mat-form-field>
+							</div>
+							<div class="col-md-3 m--margin-bottom-10-mobile">
+								<mat-form-field class="mat-form-field-fluid">
+									<input matInput placeholder="Last Name" formControlName="prefLastName">
+									<mat-error>
+										Last Name is
+										<strong>required</strong>
+									</mat-error>
+								</mat-form-field>
+							</div>
+							<div class="col-md-3 m--margin-bottom-10-mobile">
+								<mat-form-field class="mat-form-field-fluid">
+									<input matInput placeholder="Email" formControlName="prefEmail" (blur)="checkDuplicateUserByEmail($event.target.value,i,2)">
+									<mat-error>
+										Email is
+										<strong>required/invalid</strong>
+									</mat-error>
+								</mat-form-field>
+							</div>
+							<div class="col-md-3 m--margin-bottom-10-mobile">
+								<mat-form-field class="mat-form-field-fluid">
+									<input matInput placeholder="Phone" formControlName="prefPhone">
+									<mat-error>
+										Phone Name is
+										<strong>required</strong>
+									</mat-error>
+								</mat-form-field>
+							</div>
+							<div class="col-md-3 m--margin-bottom-10-mobile">
+								<input type="file" class="form-control-file" formControlName="prefCandResume"
+									(change)="fileEvent($event,i)" accept=".pdf,.doc,.docx,.txt,.odt,.rtf">
+							</div>
+							<div class="col-md-8 m--margin-bottom-10-mobile">
+								<label class="col-form-label" *ngIf="item.value.prefCandS3">
+									<a href="{{item.value.prefCandS3}}">
+										View Uploaded File
+									</a>
+								</label>
+							</div>
+							<div class="col-md-1 m--margin-bottom-10-mobile" style="text-align: -webkit-right;">
+								<!-- *ngIf="requisitionForm.get('preferredCandidates')['controls'].length != i+1" -->
+								<a href="javascript:void(0)" mat-icon-button color="error" matTooltip="Delete"
+									(click)="removePreferredCandidate(i)">
+									<mat-icon>delete</mat-icon>
+								</a>
+							</div>
+
+						</div>
+					</div>
+					<div class="m-form__group">
+						<div class="row group-heading-text">
+							<div class="col-md-12 m--margin-bottom-10-mobile">
+								<a href="javascript:void(0)" (click)="addPreferredCandidate()" mat-icon-button
+									color="primary" matTooltip="Add Another & Continue">Add Another Preferred
+									Candidate</a>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="m-form__group">
+					<div class="row group-heading-text">
+						<div class="col-md-12 m--margin-bottom-10-mobile">
+							<h5>Project Information</h5>
+							<span>Please enter the project-specific information for this requisition below</span>
+						</div>
+					</div>
+					<!---- custom fields --->
+					<div *ngIf="projectCustomeFields && projectCustomeFields.length > 0">
+						<div class="row" *ngFor="let customField of projectCustomeFields; index as i;">
+
+							<div class="col-md-6 m--margin-bottom-10-mobile form-group"
+								*ngIf="checkFieldStatus(customField?.archived,customField.id)">
+								<div [ngSwitch]="customField.type">
+									<div *ngSwitchCase="'Radio'">
+										<div>{{customField.name}}{{customField?.required?'*':''}}
+											<span *ngIf="customField?.help">
+												<a mat-icon-button color="primary" matTooltip="{{customField?.help}}">
+													<mat-icon>info</mat-icon>
+												</a>
+											</span>
+										</div>
+										<mat-radio-group formControlName="field_{{customField.id}}"
+											class=" m-radio-inline"
+											disabled="{{isDisabled || customField?.archived == true}}">
+											<mat-radio-button *ngFor="let fieldOption of customField.options"
+												class="example-radio-button" value="{{fieldOption}}">{{fieldOption}}
+											</mat-radio-button>
+										</mat-radio-group>
+										<mat-error *ngIf="checkRadioFormControlIsInvalid(customField.id)">
+											<strong>{{customField.name}}</strong> is required
+										</mat-error>
+									</div>
+									<div *ngSwitchCase="'Boolean'">
+										<div>{{customField.name}}{{customField?.required?'*':''}}
+											<span *ngIf="customField?.help">
+												<a mat-icon-button color="primary" matTooltip="{{customField?.help}}">
+													<mat-icon>info</mat-icon>
+												</a>
+											</span>
+										</div>
+										<mat-radio-group formControlName="field_{{customField.id}}"
+											class=" m-radio-inline"
+											disabled="{{isDisabled || customField?.archived == true}}">
+											<mat-radio-button class="example-radio-button" value="yes">Yes
+											</mat-radio-button>
+											<mat-radio-button class="example-radio-button" value="no">No
+											</mat-radio-button>
+										</mat-radio-group>
+										<mat-error *ngIf="checkRadioFormControlIsInvalid(customField.id)">
+											<strong>{{customField.name}}</strong> is required
+										</mat-error>
+									</div>
+
+									<div *ngSwitchCase="'Text'">
+										<div class="row">
+											<div class="col-md-11">
+												<mat-form-field class="mat-form-field-fluid">
+													<input matInput placeholder="{{customField.name}}{{customField?.required?'*':''}}"
+														formControlName="field_{{customField.id}}"
+														disabled="{{isDisabled || customField?.archived == true}}">
+													<mat-hint>
+														{{customField.name}}
+														is allowed maximum characters of 255
+													</mat-hint>
+													<mat-error>
+														<strong>{{customField.name}}</strong> is required/invalid
+													</mat-error>
+												</mat-form-field>
+											</div>
+											<div class="col-md-1" *ngIf="customField?.help">
+												<a mat-icon-button color="primary" matTooltip="{{customField?.help}}">
+													<mat-icon>info</mat-icon>
+												</a>
+											</div>
+										</div>
+									</div>
+
+									<div *ngSwitchCase="'Email'">
+										<div class="row">
+											<div class="col-md-11">
+												<mat-form-field class="mat-form-field-fluid">
+													<input matInput placeholder="{{customField.name}}{{customField?.required?'*':''}}"
+														formControlName="field_{{customField.id}}"
+														disabled="{{isDisabled || customField?.archived == true}}">
+													<mat-error>
+														<strong>{{customField.name}}</strong> is required/invalid
+													</mat-error>
+												</mat-form-field>
+											</div>
+											<div class="col-md-1" *ngIf="customField?.help">
+												<a mat-icon-button color="primary" matTooltip="{{customField?.help}}">
+													<mat-icon>info</mat-icon>
+												</a>
+											</div>
+										</div>
+									</div>
+
+									<div *ngSwitchCase="'Number'">
+										<div class="row">
+											<div class="col-md-11">
+												<mat-form-field class="mat-form-field-fluid">
+													<input matInput placeholder="{{customField.name}}{{customField?.required?'*':''}}"
+														formControlName="field_{{customField.id}}"
+														disabled="{{isDisabled || customField?.archived == true}}">
+													<mat-error>
+														<strong>{{customField.name}}</strong> must be a number or
+														decimal 3 digits and max length is 12 digits
+													</mat-error>
+												</mat-form-field>
+											</div>
+											<div class="col-md-1" *ngIf="customField?.help">
+												<a mat-icon-button color="primary" matTooltip="{{customField?.help}}">
+													<mat-icon>info</mat-icon>
+												</a>
+											</div>
+										</div>
+									</div>
+
+									<div *ngSwitchCase="'Checkbox'">
+										<div>{{customField.name}}{{customField?.required?'*':''}}
+											<span *ngIf="customField?.help">
+												<a mat-icon-button color="primary" matTooltip="{{customField?.help}}">
+													<mat-icon>info</mat-icon>
+												</a>
+											</span>
+										</div>
+										<mat-checkbox class="example-margin"
+											*ngFor="let fieldOption of customField.options"
+											formControlName="field_{{customField.id}}"
+											disabled="{{isDisabled || customField?.archived == true}}">
+											{{fieldOption}}
+										</mat-checkbox>
+										<mat-error *ngIf="checkRadioFormControlIsInvalid(customField.id)">
+											<strong>{{customField.name}}</strong> is required
+										</mat-error>
+									</div>
+									<div *ngSwitchCase="'Select'">
+										<div class="row">
+											<div class="col-md-11">
+												<mat-form-field class="mat-form-field-fluid">
+													<mat-select placeholder="{{customField.name}}{{customField?.required?'*':''}}"
+														formControlName="field_{{customField.id}}"
+														disabled="{{isDisabled || customField?.archived == true}}">
+														<mat-option value="{{cval}}"
+															*ngFor="let cval of customField.options;">{{cval}}
+														</mat-option>
+													</mat-select>
+													<mat-error>
+														<strong>{{customField.name}}</strong> is required
+													</mat-error>
+												</mat-form-field>
+											</div>
+											<div class="col-md-1" *ngIf="customField?.help">
+												<a mat-icon-button color="primary" matTooltip="{{customField?.help}}">
+													<mat-icon>info</mat-icon>
+												</a>
+											</div>
+										</div>
+									</div>
+									<div *ngSwitchCase="'MultiSelect'">
+										<div class="row">
+											<div class="col-md-11">
+												<mat-form-field class="mat-form-field-fluid">
+													<mat-select multiple placeholder="{{customField.name}}{{customField?.required?'*':''}}"
+														formControlName="field_{{customField.id}}"
+														disabled="{{isDisabled || customField?.archived == true}}">
+														<mat-option value="{{cval}}"
+															*ngFor="let cval of customField.options;">{{cval}}
+														</mat-option>
+													</mat-select>
+													<mat-error>
+														<strong>{{customField.name}}</strong> is required
+													</mat-error>
+												</mat-form-field>
+											</div>
+											<div class="col-md-1" *ngIf="customField?.help">
+												<a mat-icon-button color="primary" matTooltip="{{customField?.help}}">
+													<mat-icon>info</mat-icon>
+												</a>
+											</div>
+										</div>
+									</div>
+									<div *ngSwitchCase="'Date'">
+										<div class="row">
+											<div class="col-md-11">
+												<mat-form-field class="mat-form-field-fluid">
+													<input matInput [min]="today" [matDatepicker]="i"
+														placeholder="Choose a {{customField.name}}{{customField?.required?'*':''}}"
+														formControlName="field_{{customField.id}}" />
+													<mat-datepicker-toggle matSuffix [for]="i"
+														disabled="{{isDisabled || customField?.archived == true}}">
+													</mat-datepicker-toggle>
+													<mat-datepicker #i></mat-datepicker>
+													<mat-error>
+														<strong>{{customField.name}}</strong> is required
+													</mat-error>
+												</mat-form-field>
+											</div>
+											<div class="col-md-1" *ngIf="customField?.help">
+												<a mat-icon-button color="primary" matTooltip="{{customField?.help}}">
+													<mat-icon>info</mat-icon>
+												</a>
+											</div>
+										</div>
+									</div>
+									<div *ngSwitchCase="'TextArea'">
+										<div class="row">
+											<div class="col-md-11">
+												<mat-form-field class="mat-form-field-fluid">
+													<textarea matInput rows="7"
+														placeholder="Enter a {{customField?.name}}{{customField?.required?'*':''}}"
+														formControlName="field_{{customField.id}}"
+														disabled="{{isDisabled || customField?.archived == true}}"></textarea>
+													<mat-error>
+														<strong>{{customField.name}}</strong> is allowed maximum
+														characters of 512
+													</mat-error>
+													<mat-error>
+														<strong>{{customField.name}}</strong> is invalid
+													</mat-error>
+												</mat-form-field>
+											</div>
+											<div class="col-md-1" *ngIf="customField?.help">
+												<a mat-icon-button color="primary" matTooltip="{{customField?.help}}">
+													<mat-icon>info</mat-icon>
+												</a>
+											</div>
+										</div>
+									</div>
+								</div>
+							</div>
+						</div>
+
+						<div class="form-inline">
+							<button type="button" (click)="goBack()" mat-raised-button
+								matTooltip="Back to the requisition list">Back</button>&nbsp;
+							<button *ngIf="!accessRoles?.isAdmin() && ((viewMode != true) || (reqStatus == 'Draft'))" mat-raised-button
+								(click)="onSubmitDraft(false)" matTooltip="Save As Draft" class="btn-accent">Save As Draft</button>&nbsp;
+							<div class="m-buttons--wrapper">
+								<button type="button" *ngIf="!(accessRoles?.isAdmin())"
+									[disabled]="requisitionForm.value.showProfileNotFound" (click)="onSubmit(true)" mat-raised-button
+									color="primary" matTooltip="Save & Continue">
+									Submit
+								</button>
+								<button type="button"
+									*ngIf="accessRoles?.isAdmin()"
+									[disabled]="requisitionForm.value.showProfileNotFound" (click)="onSaveByAdmin()" mat-raised-button
+									color="primary" matTooltip="Save">
+									Save
+								</button>
+							</div>
+						</div>
+					</div>
+					<!-- end of custom fields -->
+				</div>
+			
+				
+		
+
+				<div class="m-form__group" *ngIf="editMode && !duplicate">
+					<div class="row group-heading-text">
+						<div class="col-md-12 m--margin-bottom-10-mobile">
+							<h5>Activity Log</h5>
+						</div>
+					</div>
+					<div class="col-md-12">
+						<m-requisition-activity-log [reqId]="requisition?.req_id" [updatedAt]="updatedAt">
+						</m-requisition-activity-log>
+					</div>
+				</div>
+			</div>
+		</form>
+		<!--end::Form-->
+	</ng-container>
+</m-portlet>
