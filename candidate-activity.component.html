@@ -1,0 +1,111 @@
+<m-portlet [options]="{headLarge: true, enableSticky: true}" [loading$]="loading$">
+	<ng-container mPortletHeadTitle>
+		<div class="m-portlet__head-title">
+			<h3 class="m-portlet__head-text">
+				Candidate Activity: &nbsp;&nbsp;<span class="m-badge m-badge--{{ getItemCssClassByStatus(candidate?.status_id) }} m-badge--wide">{{getItemStatusString(candidate?.status_id)}}</span>
+			</h3>
+		</div>
+	</ng-container>
+	<ng-container mPortletHeadTools>
+		<button type="button" (click)="goBack()" mat-raised-button matTooltip="Back to the candidate list">Back</button>
+		&nbsp;
+		<div class="m-buttons--wrapper">
+			<button type="button" (click)="onSumbit(false)" mat-raised-button color="primary" matTooltip="Change Status">Save</button>
+		</div>
+	</ng-container>
+	<ng-container mPortletBody>		
+			<!--begin::Form-->			
+			<form [formGroup]="candidateForm" class="m-form m-form--group-seperator-dashed">
+				<m-alert *ngIf="hasFormErrors" type="warn" [showCloseButton]="true" [duration]="10000" (close)="onAlertClose($event)">
+					All * fields are mandatory.
+				</m-alert>
+				<div class="m-form__section m-form__section--first">
+					<div class="m-form__group">
+						<div class="row">
+							<div class="col-md-3 m--margin-bottom-10-mobile bg-color form-group">
+								<p class="col-form-label lf">Requisition Code</p>
+							</div>
+							<div class="col-md-3 m--margin-bottom-10-mobile">
+								<label class="col-form-label">{{candidate?.requisition?.req_code?candidate?.requisition?.req_code: candidate?.requisition?.req_id}}</label>
+							</div>
+							<div class="col-md-3 m--margin-bottom-10-mobile bg-color form-group">
+								<p class="col-form-label lf">Job Title</p>
+							</div>
+							<div class="col-md-3 m--margin-bottom-10-mobile">
+								<label class="col-form-label" *ngIf="candidate?.requisition?.projectProfile?.title;else profile">{{candidate?.requisition?.projectProfile?.title}}</label>
+								<ng-template #profile>
+									<label class="col-form-label">
+										{{candidate?.requisition?.project?.title}}
+									</label>
+								</ng-template>
+							</div>
+						</div>
+					</div>
+					<div class="m-form__group">
+						<div class="row">
+							<div class="col-md-3 m--margin-bottom-10-mobile bg-color form-group">
+								<p class="col-form-label lf">Candidate Legal Name</p>
+							</div>
+							<div class="col-md-4 m--margin-bottom-10-mobile">
+								<label class="col-form-label">{{candidate?.first_name}} {{candidate?.last_name}}</label>
+							</div>
+						</div>
+					</div>
+					<div class="m-form__group">
+						<div class="row">
+							<div class="col-md-3 m--margin-bottom-10-mobile bg-color form-group">
+								<p class="col-form-label lf">Select Activity Type</p>
+							</div>
+							<div class="col-md-3 m--margin-bottom-10-mobile">
+								<mat-form-field class="mat-form-field-fluid">
+									<mat-select placeholder="Activity Type *" formControlName="activityType" (selectionChange)="onSelectActivity($event)">
+										<mat-option value="{{activity.id}}" *ngFor="let activity of activityType;">{{activity.description}}</mat-option>
+									</mat-select>
+									<mat-error>
+										Activity Type is 
+										<strong>required</strong>
+									</mat-error>										
+								</mat-form-field>
+							</div>							
+							<div class="col-md-3 m--margin-bottom-10-mobile" *ngIf="interviewRequested">
+								<mat-form-field class="mat-form-field-fluid">
+									<mat-select placeholder="Select Interview Mode" formControlName="interviewMode" class="mat-form-field-fluid">
+										<mat-option value="">Select</mat-option>
+										<mat-option value="{{mode.id}}" *ngFor="let mode of interviewModeList;">{{mode.description}}</mat-option>
+									</mat-select>
+									<mat-error>
+										Interview mode is 
+										<strong>required</strong>
+									</mat-error>
+								</mat-form-field>
+							</div>
+						</div>
+					</div>
+					<div class="m-form__group">
+						<div class="row">
+							<div class="col-md-12 m--margin-bottom-10-mobile">
+								<!-- Upload label -->
+								<label class="col-form-label">Upload Additional Documents&ensp;
+									<span *ngIf="activeUploadlabel?.text" >
+										Please upload the completed  	
+									 <a href ={{activeUploadlabel?.text}}> 7171 form</a> 
+								</span>
+								</label>
+								<input  type="file" class="form-control-file" formControlName="document" (change)="fileEvent($event)" accept=".pdf,.doc,.docx,.txt,.odt,.rtf">
+							</div>
+						</div>
+					</div>	
+					<div class="m-form__group">
+						<div class="row">
+							<div class="col-md-12 m--margin-bottom-10-mobile">
+								<mat-form-field class="mat-form-field-fluid">
+									<textarea matInput rows="7" placeholder="Remarks" formControlName="notes"></textarea>
+								</mat-form-field>
+							</div>
+						</div>
+					</div>	
+				</div>
+			</form>
+			<!--end::Form-->		
+	</ng-container>
+</m-portlet>

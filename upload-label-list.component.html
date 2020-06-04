@@ -1,0 +1,199 @@
+<!-- start::FILTERS & GROUP ACTIONS -->
+<div class="m-form">
+	<!-- start::FILTERS -->
+	<div class="m-form__filtration">
+		<div class="row align-items-center">
+			<div class="col-md-2 m--margin-bottom-10-mobile">
+				<div class="m-form__control">
+					<mat-form-field class="mat-form-field mat-form-field-fluid">
+						<mat-select [(value)]="filterActivity" (selectionChange)="loadUploadLabelsList()">
+							<mat-option value="">All</mat-option>
+							<mat-option *ngFor="let act of activityList" [value]="act.id">
+					        {{act.name}}
+					      </mat-option>
+						</mat-select>
+						<mat-hint align="start">
+							<strong>Filter by Activity</strong>
+						</mat-hint>
+					</mat-form-field>
+				</div>
+			</div>
+			<div class="col-md-3 m--margin-bottom-10-mobile">
+				<mat-form-field class="mat-form-field-fluid">
+					<input matInput placeholder="Search upload label" #searchInput>
+					<mat-hint align="start">Search in label fields</mat-hint>
+				</mat-form-field>
+			</div>
+			<div class="col-md-3 m--margin-bottom-10-mobile"></div>
+			<div class="col-md-4 text-right m--margin-bottom-10-mobile" *ngIf="accessRoles.canViewUploadLabel()">
+				<button type="button"
+					(click)="addActivityMessageButtonOnClick()"
+					mat-raised-button
+					color="primary"
+					matTooltip="Create new activity message"
+					[disabled]="activityMessageForAdd._isEditMode || isSwitchedToEditMode">New Label</button>
+			</div>
+		</div>
+	</div>
+</div>
+<!-- end::FILTERS & GROUP ACTIONS -->
+<!-- MATERIAL TABLE | Binded to datasources -->
+<div class="mat-table__wrapper">
+	<form [formGroup]="formGroup">
+		<mat-table class="lmat-elevation-z8" [dataSource]="dataSource" matSort matSortActive="id" matSortDirection="desc" matSortDisableClear>
+			<ng-container matColumnDef="add-activity">
+				<mat-header-cell *matHeaderCellDef class="mat-column">
+					<mat-form-field *ngIf="activityMessageForAdd._isEditMode">
+						<mat-select placeholder="Activity *" formControlName="newActivity">
+					      <mat-option *ngFor="let act of activityListForUploadLabel" [value]="act.id">
+					        {{act.name}}
+					      </mat-option>
+						</mat-select>
+						<mat-hint align="start">Please select
+							<strong>Activity</strong>
+						</mat-hint>
+					</mat-form-field>
+				</mat-header-cell>
+			</ng-container>
+
+			<ng-container matColumnDef="add-text">
+				<mat-header-cell *matHeaderCellDef class="mat-column">
+					<mat-form-field *ngIf="activityMessageForAdd._isEditMode">
+						<input matInput placeholder="Enter label" formControlName="newText">
+						<mat-hint align="start">Please enter
+							<strong>Text</strong>
+						</mat-hint>
+					</mat-form-field>
+				</mat-header-cell>
+			</ng-container>		
+			
+			
+			<ng-container matColumnDef="add-required">
+				<mat-header-cell *matHeaderCellDef class="mat-column">
+					<span *ngIf="activityMessageForAdd._isEditMode">
+						<mat-checkbox formControlName="newRequired">Required</mat-checkbox>
+					</span>
+				</mat-header-cell>
+			</ng-container>		
+
+			<ng-container matColumnDef="add-actions">
+				<mat-header-cell *matHeaderCellDef class="mat-column">
+					<span  class="mat-column-actions-wrapper" *ngIf="activityMessageForAdd._isEditMode">
+						<button *ngIf="!loadingAfterSubmit"
+							mat-icon-button 
+							color="{{checkAddForm() ? 'primary' : 'accent'}}" 
+							type="button" 
+							(click)="saveNewActivityMessage()" 
+							matTooltip="Save new uploadLabel">
+							<mat-icon>done</mat-icon>
+						</button>
+						<mat-spinner *ngIf="loadingAfterSubmit" [diameter]="20"></mat-spinner>
+						&nbsp;
+						<button type="button" 
+							mat-icon-button 
+							color="wan" 
+							(click)="cancelAddButtonOnClick()" 
+							matTooltip="Cancel changes">
+							<mat-icon>clear</mat-icon>
+						</button>
+					</span>
+				</mat-header-cell>
+			</ng-container>
+
+			<ng-container matColumnDef="activity.name">
+				<mat-header-cell *matHeaderCellDef mat-sort-header class="mat-column">Activity</mat-header-cell>
+				<mat-cell *matCellDef="let activityMessage" class="mat-column">
+					<mat-form-field *ngIf="activityMessage._isEditMode">
+						<mat-select placeholder="Activity *" formControlName="editActivity" [disabled]="true">
+					      <mat-option *ngFor="let act of activityListForUploadLabel" [value]="act.id">
+					        {{act.name}}
+					      </mat-option>
+						</mat-select>
+					</mat-form-field>
+					<span *ngIf="!activityMessage._isEditMode">{{getActivityNameByActivityId(activityMessage.status_id)}}</span>
+				</mat-cell>
+			</ng-container>
+
+			<ng-container matColumnDef="message">
+				<mat-header-cell *matHeaderCellDef mat-sort-header class="mat-column">Upload Labels</mat-header-cell>
+				<mat-cell *matCellDef="let activityMessage" class="mat-column">
+					<mat-form-field *ngIf="activityMessage._isEditMode">
+						<input matInput placeholder="Enter upload label name" formControlName="editText">
+						<mat-hint align="start">Please enter
+							<strong>Text</strong>
+						</mat-hint>
+					</mat-form-field>
+					<span *ngIf="!activityMessage._isEditMode">Please upload the completed&nbsp;<a href={{activityMessage.text}}>7171 form</a></span>
+				</mat-cell>
+			</ng-container>
+			<ng-container matColumnDef="required">
+				<mat-header-cell *matHeaderCellDef mat-sort-header class="mat-column">Required</mat-header-cell>
+				<mat-cell *matCellDef="let activityMessage" class="mat-column">
+					<span *ngIf="activityMessage._isEditMode">
+						<mat-checkbox formControlName="editRequired">Required</mat-checkbox>
+					</span>
+					<span *ngIf="!activityMessage._isEditMode">{{activityMessage.is_required}}</span>
+				</mat-cell>
+			</ng-container>
+			<ng-container matColumnDef="actions">
+				<mat-header-cell *matHeaderCellDef class="mat-column">
+					Actions
+				</mat-header-cell>
+				<mat-cell *matCellDef="let activityMessage" class="mat-column">
+					<button *ngIf="!activityMessage._isEditMode && accessRoles.canEditActivityMessage()" 
+						[disabled]="isSwitchedToEditMode" 
+						type="button" 
+						mat-icon-button 
+						color="primary" 
+						(click)="editActivityMessageButtonOnClick(activityMessage)" 
+						matTooltip="Edit activityMessage">
+						<mat-icon>create</mat-icon>
+					</button>
+					<button *ngIf="activityMessage._isEditMode && !loadingAfterSubmit"
+						mat-icon-button 
+						color="{{checkEditForm() ? 'primary' : 'accent'}}" 
+						type="button" 
+						(click)="saveUpdatedActivityMessage(activityMessage)" 
+						matTooltip="Save changes">
+						<mat-icon>done</mat-icon>
+					</button>
+					<mat-spinner *ngIf="activityMessage._isEditMode && loadingAfterSubmit" [diameter]="20"></mat-spinner>
+					&nbsp;
+					<button *ngIf="!activityMessage._isEditMode && accessRoles.canDeleteActivityMessage()" 
+						[disabled]="isSwitchedToEditMode" 
+						mat-icon-button 
+						color="warn" 
+						type="button" 
+						(click)="deleteUploadLabel(activityMessage)" 
+						matTooltip="Delete activityMessage">
+						<mat-icon>delete</mat-icon>
+					</button>
+					<button *ngIf="activityMessage._isEditMode" 
+						type="button" 
+						mat-icon-button 
+						color="warn" 
+						(click)="cancelEditButtonOnClick(activityMessage)" 
+						matTooltip="Cancel changes">
+						<mat-icon>clear</mat-icon>
+					</button>
+					
+				</mat-cell>
+			</ng-container>
+			<!-- end: EDIT row -->
+
+			<mat-row *matRowDef="let row; columns: displayedColumns" [ngClass]="{'mat-row-editing' : row._isEditMode}"></mat-row>
+			<mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+			<mat-header-row *matHeaderRowDef="['add-activity', 'add-text', 'add-required', 'add-actions']" class="mat-row-editing mat-row-add" [ngClass]="{'mat-row-inactive' : !activityMessageForAdd._isEditMode}">
+			</mat-header-row> <!-- 'add-select', 'add-id', -->
+		</mat-table>
+	</form>
+
+	<div class="mat-table__message" *ngIf="!dataSource.hasItems">No records found</div>
+</div>
+
+<!-- start: BOTTOM -->
+<div class="mat-table__bottom">
+	<mat-spinner [diameter]="20" *ngIf="dataSource.loading$ | async"></mat-spinner>
+	<mat-paginator [pageSize]="5" [pageSizeOptions]="[3, 5, 10]" [length]="dataSource.paginatorTotal$ | async" [showFirstLastButtons]="true"></mat-paginator>
+</div>
+<!-- end: BOTTOM -->
