@@ -59,15 +59,13 @@
 			<ng-container matColumnDef="add-text">
 				<mat-header-cell *matHeaderCellDef class="mat-column">
 					<mat-form-field *ngIf="activityMessageForAdd._isEditMode">
-						<input matInput placeholder="Enter label" formControlName="newText">
+						<input matInput placeholder="Enter label" formControlName="newText"> 
 						<mat-hint align="start">Please enter
 							<strong>Text</strong>
 						</mat-hint>
 					</mat-form-field>
 				</mat-header-cell>
 			</ng-container>		
-			
-			
 			<ng-container matColumnDef="add-required">
 				<mat-header-cell *matHeaderCellDef class="mat-column">
 					<span *ngIf="activityMessageForAdd._isEditMode">
@@ -80,6 +78,7 @@
 				<mat-header-cell *matHeaderCellDef class="mat-column">
 					<span  class="mat-column-actions-wrapper" *ngIf="activityMessageForAdd._isEditMode">
 						<button *ngIf="!loadingAfterSubmit"
+						[innerHtml]
 							mat-icon-button 
 							color="{{checkAddForm() ? 'primary' : 'accent'}}" 
 							type="button" 
@@ -123,7 +122,7 @@
 							<strong>Text</strong>
 						</mat-hint>
 					</mat-form-field>
-					<span *ngIf="!activityMessage._isEditMode">Please upload the completed&nbsp;<a href={{activityMessage.text}}>7171 form</a></span>
+					<span *ngIf="!activityMessage._isEditMode" [innerHTML]="activityMessage.text"></span>
 				</mat-cell>
 			</ng-container>
 			<ng-container matColumnDef="required">

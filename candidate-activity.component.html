@@ -86,10 +86,7 @@
 							<div class="col-md-12 m--margin-bottom-10-mobile">
 								<!-- Upload label -->
 								<label class="col-form-label">Upload Additional Documents&ensp;
-									<span *ngIf="activeUploadlabel?.text" >
-										Please upload the completed  	
-									 <a href ={{activeUploadlabel?.text}}> 7171 form</a> 
-								</span>
+									<span *ngIf="activeUploadlabel?.text" [innerHTML]="activeUploadlabel?.text"></span>
 								</label>
 								<input  type="file" class="form-control-file" formControlName="document" (change)="fileEvent($event)" accept=".pdf,.doc,.docx,.txt,.odt,.rtf">
 							</div>
